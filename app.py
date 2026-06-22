@@ -84,6 +84,11 @@ with tab1:
     csv = dff.to_csv(index=False).encode("utf-8")
     st.download_button("⬇️ Descargar CSV filtrado", csv, "matricula_filtrada.csv", "text/csv")
 
+    if st.button("📝 Generar archivo CSV en disco"):
+        output_path = "matricula_filtrada.csv"
+        dff.to_csv(output_path, index=False, encoding="utf-8")
+        st.success(f"Archivo generado: {output_path}")
+
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 2 – ESTADÍSTICAS DESCRIPTIVAS
 # ══════════════════════════════════════════════════════════════════════════════
@@ -118,6 +123,35 @@ with tab2:
     freq = dff[cat_col].value_counts().reset_index()
     freq.columns = [cat_col, "Frecuencia"]
     st.dataframe(freq, use_container_width=True)
+
+    st.markdown("#### Filas con valores nulos") 
+    st.dataframe(df[df.isnull().any(axis=1)].head())
+    st.write("Número de filas con al menos un valor nulo:", df.isnull().any(axis=1).sum())
+
+    drop_na = st.checkbox("Eliminar filas con valores nulos", value=False)
+    if drop_na:
+        dff.dropna(inplace=True)
+        st.success("Filas con valores nulos eliminadas. Actualiza las estadísticas y visualizaciones.")
+
+    fill_na = st.checkbox("Rellenar valores nulos con 0 (solo para TOTAL)", value=False)
+    if fill_na:
+        if "TOTAL" in dff.columns:
+            dff["TOTAL"] = dff["TOTAL"].fillna(0)
+            st.success("Valores nulos en TOTAL rellenados con 0. Actualiza las estadísticas y visualizaciones.")
+        else:
+            st.warning("La columna TOTAL no está presente en el dataset.")
+
+df.describe(include="all").T
+Q1 = df["TOTAL"].quantile(0.25)
+Q3 = df["TOTAL"].quantile(0.75) 
+IQR = Q3 - Q1
+outliers = df[(df["TOTAL"] < Q1 - 1.5 * IQR) | (df["TOTAL"] > Q3 + 1.5 * IQR)]
+st.markdown("#### Análisis de outliers en variable TOTAL")
+st.write(f"Rango intercuartílico (IQR): {IQR:.2f}")
+st.write(f"Valores atípicos detectados: {len(outliers)}")
+if not outliers.empty:
+    st.dataframe(outliers[["AÑO", "NOMBRE_IES", "TOTAL"]].head())           
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 3 – VISUALIZACIONES
@@ -260,3 +294,4 @@ with tab4:
             mime="text/html"
         )
         st.components.v1.html(html_content, height=900, scrolling=True)
+
